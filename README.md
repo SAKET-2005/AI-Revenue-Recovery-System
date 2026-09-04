@@ -2,13 +2,13 @@
 
 <div align="center">
 
-[![Python](https://img.shields.io/badge/Python-3.14%2B-blue.svg?logo=python)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.135%2B-009688.svg?logo=fastapi)](https://fastapi.tiangolo.com)
-[![React](https://img.shields.io/badge/React-18%20%7C%20TypeScript-61DAFB.svg?logo=react)](https://reactjs.org)
-[![Vite](https://img.shields.io/badge/Vite-6.0-646CFF.svg?logo=vite)](https://vitejs.dev)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg?logo=python)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-009688.svg?logo=fastapi)](https://fastapi.tiangolo.com)
+[![React](https://img.shields.io/badge/React-19%20%7C%20TypeScript-61DAFB.svg?logo=react)](https://reactjs.org)
+[![Vite](https://img.shields.io/badge/Vite-Latest-646CFF.svg?logo=vite)](https://vitejs.dev)
 [![XGBoost](https://img.shields.io/badge/XGBoost-3.2%2B-orange.svg)](https://xgboost.ai)
 [![Razorpay](https://img.shields.io/badge/Razorpay-Test%20Mode%20Ready-0C2340.svg)](https://razorpay.com)
-[![Tests](https://img.shields.io/badge/Tests-13%2F13%20Passing-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/Tests-13%2F13%20Passing-brightgreen.svg)](#-running-automated-tests)
 
 **"An autonomous AI agent that finds slipping revenue, understands why it is at risk, chooses the safest recovery action, and executes it within strict financial guardrails."**
 
@@ -55,6 +55,8 @@ flowchart LR
 | **Action Executor** | Dispatches allowed recovery actions | Razorpay Test Mode & Simulation layer isolation |
 | **Audit Trail** | Logs every decision & policy evaluation | Complete compliance and auditability |
 
+For detailed diagrams and architectural specifications, see the [Architecture Documentation](docs/architecture.md).
+
 ---
 
 ## 🛡️ Codified Guardrails & Policies
@@ -75,8 +77,8 @@ flowchart LR
 
 ### 1. Clone & Configure
 ```bash
-git clone https://github.com/your-username/ReviveAI.git
-cd ReviveAI
+git clone https://github.com/SAKET-2005/AI-Revenue-Recovery-System.git
+cd AI-Revenue-Recovery-System
 cp .env.example .env
 ```
 
@@ -87,6 +89,9 @@ pip install -r requirements.txt
 
 # Train the ML Recovery Model
 python -m scripts.train_model
+
+# Seed the database with synthetic transactions and recovery history (from project root)
+python ../scripts/seed_database.py 1000
 
 # Start FastAPI Backend (Port 8000)
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
@@ -109,19 +114,24 @@ ReviveAI includes comprehensive test coverage for policy guardrails, ML predicti
 
 ```bash
 cd backend
-python -m pytest tests/ -v
+python -m pytest -v
 ```
 
-All 13 automated tests run and validate the core safety invariants:
+All 13 automated tests pass and validate the core safety invariants:
 ```
+tests/test_ml_and_executor.py::test_ml_predictor_inference PASSED
+tests/test_ml_and_executor.py::test_agent_deterministic_reasoning PASSED
+tests/test_ml_and_executor.py::test_action_executor_mock_retry PASSED
+tests/test_ml_and_executor.py::test_action_executor_payment_link_creation PASSED
 tests/test_policy_engine.py::test_high_value_transaction_is_escalated PASSED
 tests/test_policy_engine.py::test_expired_card_is_not_retried PASSED
 tests/test_policy_engine.py::test_retry_limit_is_enforced PASSED
 tests/test_policy_engine.py::test_low_confidence_is_escalated PASSED
 tests/test_policy_engine.py::test_valid_retry_is_allowed PASSED
 tests/test_policy_engine.py::test_payment_link_allowed_within_probability_band PASSED
+tests/test_webhooks_and_api.py::test_api_health_endpoint PASSED
 tests/test_webhooks_and_api.py::test_webhook_idempotency_and_duplicate_rejection PASSED
-...
+tests/test_webhooks_and_api.py::test_generate_and_list_transactions PASSED
 ```
 
 ---
@@ -139,28 +149,35 @@ ReviveAI/
 │   │   ├── ml/             # XGBoost Predictor & Training Pipeline
 │   │   ├── models/         # SQLAlchemy ORM Models
 │   │   ├── policies/       # Deterministic Guardrail Engine (PolicyEngine)
-│   │   └── schemas/        # Pydantic Schemas & Types
-│   ├── tests/              # Pytest Suite
+│   │   ├── schemas/        # Pydantic Schemas & Types
+│   │   ├── services/       # Core Recovery Pipeline Service
+│   │   └── utils/          # Synthetic Data Generator & Helpers
+│   ├── scripts/
+│   │   └── train_model.py  # Model Training Script
+│   ├── tests/              # Pytest Test Suite
 │   └── ml_artifacts/       # Serialized XGBoost Model & Encoders
 ├── frontend/
 │   ├── src/
-│   │   ├── components/     # UI Components, AppShell, 3D Canvas
-│   │   ├── pages/          # Dashboard, Transactions, Detail, Audit, Analytics
-│   │   └── lib/            # API Client & Adapters
+│   │   ├── components/     # UI Components, AppShell, 3D WebGL Canvas
+│   │   ├── pages/          # Landing, Dashboard, Transactions, Detail, Audit, Analytics
+│   │   └── lib/            # API Client, Types, and Adapters
 ├── docs/
 │   ├── architecture.md     # In-depth architectural design & Mermaid diagrams
 │   └── api.md              # Complete REST API specifications
 ├── scripts/
-│   ├── train_model.py      # ML Model Training Script
-│   ├── seed_database.py    # Synthetic Data Seeding
-│   └── run_demo.py         # CLI Interactive Pipeline Runner
+│   ├── seed_database.py    # Synthetic Data & Recovery Seeder
+│   └── run_demo.py         # CLI Interactive Pipeline Verification Runner
 ├── .env.example
 ├── docker-compose.yml
 └── README.md
 ```
 
+Detailed technical specifications:
+- [Architecture & Design Document](docs/architecture.md)
+- [REST API Reference](docs/api.md)
+
 ---
 
 ## 📄 License & Disclaimer
 
-Built for the **Razorpay AI Buildathon 2026**. All demo datasets use synthetic, non-PII transaction records. Razorpay APIs operate strictly in test mode.
+Built for the **Razorpay AI Buildathon 2026**. All datasets use synthetic, non-PII transaction records. Razorpay gateway integrations operate in simulation and test mode.
