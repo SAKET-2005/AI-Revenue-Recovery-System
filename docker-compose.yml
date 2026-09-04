@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_MODE=demo
+      - APP_HOST=0.0.0.0
+      - APP_PORT=8000
+      - DATABASE_URL=sqlite+aiosqlite:///./reviveai.db
+      - ML_MODEL_PATH=ml_artifacts/recovery_model.joblib
+    volumes:
+      - ./backend/reviveai.db:/app/reviveai.db
+      - ./backend/ml_artifacts:/app/ml_artifacts
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
