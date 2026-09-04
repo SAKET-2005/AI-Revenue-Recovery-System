@@ -304,12 +304,11 @@ class RecoveryService:
                             stats["recovered_amount"] += action_result.amount_recovered
                     elif analysis.policy_result.decision.value == "ESCALATE":
                         stats["escalations"] += 1
-                        stats["attempted"] += 1
                         await self.execute_recovery(txn.transaction_id, db)
                     elif analysis.policy_result.decision.value in ("BLOCK", "STOP"):
                         stats["blocks"] += 1
 
-                # Baseline: simple retry for everything
+                # Baseline: simple un-governed retry for everything
                 import random
                 if txn.failure_code in ("temporary_bank_failure", "network_timeout"):
                     if random.random() < 0.35:
@@ -321,11 +320,12 @@ class RecoveryService:
                 print(f"[Batch] Error processing {txn.transaction_id}: {e}")
                 continue
 
-        # Calculate rates
-        recovery_rate = (stats["recovered_count"] / stats["failed"] * 100) if stats["failed"] > 0 else 0
+        # Calculate rates on consistent revenue basis
+        recovery_rate = (stats["recovered_amount"] / stats["risk_amount"] * 100) if stats["risk_amount"] > 0 else 0
         avg_recovery = (stats["recovered_amount"] / stats["recovered_count"]) if stats["recovered_count"] > 0 else 0
         baseline_rate = (stats["baseline_recovered"] / stats["risk_amount"] * 100) if stats["risk_amount"] > 0 else 0
-        improvement = recovery_rate - baseline_rate if baseline_rate > 0 else recovery_rate
+        # Standard relative recovery lift: (actual_rate - baseline_rate) / baseline_rate * 100
+        recovery_lift = ((recovery_rate - baseline_rate) / baseline_rate * 100) if baseline_rate > 0 else 0
 
         eval_run = EvaluationRun(
             run_id=run_id,
@@ -343,7 +343,7 @@ class RecoveryService:
             policy_block_rate=round((stats["blocks"] / stats["eligible"] * 100) if stats["eligible"] > 0 else 0, 2),
             baseline_recovered=round(stats["baseline_recovered"], 2),
             baseline_recovery_rate=round(baseline_rate, 2),
-            improvement_pct=round(improvement, 2),
+            improvement_pct=round(recovery_lift, 2),
         )
         db.add(eval_run)
         await db.flush()

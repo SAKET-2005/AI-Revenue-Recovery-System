@@ -8,7 +8,7 @@
 [![Vite](https://img.shields.io/badge/Vite-Latest-646CFF.svg?logo=vite)](https://vitejs.dev)
 [![XGBoost](https://img.shields.io/badge/XGBoost-3.2%2B-orange.svg)](https://xgboost.ai)
 [![Razorpay](https://img.shields.io/badge/Razorpay-Test%20Mode%20Ready-0C2340.svg)](https://razorpay.com)
-[![Tests](https://img.shields.io/badge/Tests-13%2F13%20Passing-brightgreen.svg)](#-running-automated-tests)
+[![Tests](https://img.shields.io/badge/Tests-18%2F18%20Passing-brightgreen.svg)](#-running-automated-tests)
 
 **"An autonomous AI agent that finds slipping revenue, understands why it is at risk, chooses the safest recovery action, and executes it within strict financial guardrails."**
 
@@ -28,7 +28,7 @@ Indian merchants lose 15–35% of attempted transaction volume to transient fail
 4. **Enforces** strict deterministic guardrails (no uncontrolled LLM money movements).
 5. **Executes** bounded recovery actions (automated retries, customer nudges, payment links).
 6. **Quantifies** measured money recovered and recovery lift over baseline.
-7. **Maintains** an immutable audit trail for complete merchant transparency.
+7. **Maintains** an append-only audit trail for complete merchant transparency.
 
 ---
 
@@ -42,7 +42,7 @@ flowchart LR
     D -->|Passed| E[Action Executor]
     D -->|Violation| F[Escalate to Human / Block]
     E --> G[Razorpay Test API / Simulation]
-    E --> H[Immutable Audit Log]
+    E --> H[Append-Only Audit Log]
     G --> I[Measured Money Recovered]
 ```
 
@@ -117,7 +117,7 @@ cd backend
 python -m pytest -v
 ```
 
-All 13 automated tests pass and validate the core safety invariants:
+All 18 automated tests pass and validate the core safety invariants:
 ```
 tests/test_ml_and_executor.py::test_ml_predictor_inference PASSED
 tests/test_ml_and_executor.py::test_agent_deterministic_reasoning PASSED
@@ -129,6 +129,11 @@ tests/test_policy_engine.py::test_retry_limit_is_enforced PASSED
 tests/test_policy_engine.py::test_low_confidence_is_escalated PASSED
 tests/test_policy_engine.py::test_valid_retry_is_allowed PASSED
 tests/test_policy_engine.py::test_payment_link_allowed_within_probability_band PASSED
+tests/test_policy_engine.py::test_insufficient_funds_never_retried PASSED
+tests/test_policy_engine.py::test_authentication_failure_never_retried PASSED
+tests/test_policy_engine.py::test_risk_decline_routed_to_human_review PASSED
+tests/test_policy_engine.py::test_low_recovery_probability_stops PASSED
+tests/test_policy_engine.py::test_retry_amount_exceeding_auto_limit_is_escalated PASSED
 tests/test_webhooks_and_api.py::test_api_health_endpoint PASSED
 tests/test_webhooks_and_api.py::test_webhook_idempotency_and_duplicate_rejection PASSED
 tests/test_webhooks_and_api.py::test_generate_and_list_transactions PASSED

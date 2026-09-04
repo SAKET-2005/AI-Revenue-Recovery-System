@@ -40,7 +40,7 @@ flowchart TD
     end
 
     subgraph Governance["Traceability & Evaluation"]
-        K --> O[Immutable Audit Trail]
+        K --> O[Append-Only Audit Trail]
         I --> O
         K --> P[Recovered Revenue Tracker]
         P --> Q[Baseline Comparison & Recovery Lift]

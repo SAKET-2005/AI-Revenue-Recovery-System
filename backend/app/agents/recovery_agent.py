@@ -113,6 +113,7 @@ class RecoveryAgent:
                 ],
                 temperature=0.1,
                 response_format={"type": "json_object"},
+                timeout=8.0,
             )
 
             content = response.choices[0].message.content
@@ -144,6 +145,7 @@ class RecoveryAgent:
                     ],
                     temperature=0.0,
                     response_format={"type": "json_object"},
+                    timeout=8.0,
                 )
                 content = response.choices[0].message.content
                 data = json.loads(content)

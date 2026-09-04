@@ -11,7 +11,13 @@ from app.config import settings
 
 
 # Non-retryable failure types — automated retry must NEVER happen
-NON_RETRYABLE = {"expired_card", "invalid_details", "risk_decline"}
+NON_RETRYABLE = {
+    "expired_card",
+    "invalid_details",
+    "risk_decline",
+    "insufficient_funds",
+    "authentication_failure",
+}
 
 # Failure types that are safe for automated retry
 RETRYABLE = {"temporary_bank_failure", "network_timeout"}
@@ -88,19 +94,32 @@ class PolicyEngine:
                 final_action="human_review",
             )
 
-        # ── Rule 3: Expired card → NEVER retry ─────────────────
-        if failure_code in NON_RETRYABLE and requested_action == RecoveryAction.RETRY.value:
+        # ── Rule 3: Non-retryable failure → NEVER retry ────────
+        # Transient failure types (temporary_bank_failure, network_timeout) are the ONLY retryable types
+        is_non_retryable = (failure_code in NON_RETRYABLE) or (failure_code and failure_code not in RETRYABLE)
+        if requested_action == RecoveryAction.RETRY.value and is_non_retryable:
             rules_triggered.append("NON_RETRYABLE_FAILURE")
             reasons.append(
                 f"Failure type '{failure_code}' cannot be automatically retried"
             )
+
+            # Route to appropriate non-retry intervention
+            if failure_code == "insufficient_funds":
+                final_action = "payment_link"
+            elif failure_code == "risk_decline":
+                final_action = "human_review"
+            elif failure_code in ("expired_card", "invalid_details", "authentication_failure"):
+                final_action = "customer_nudge"
+            else:
+                final_action = "human_review"
+
             return PolicyResult(
                 allowed=False,
                 decision=PolicyVerdict.BLOCK,
                 reason="; ".join(reasons),
                 rules_triggered=rules_triggered,
                 original_action=requested_action,
-                final_action="customer_nudge" if recovery_probability >= self.min_nudge_prob else "stop",
+                final_action=final_action,
             )
 
         # ── Rule 4: Retry limit reached → STOP retrying ────────
@@ -108,6 +127,22 @@ class PolicyEngine:
             rules_triggered.append("RETRY_LIMIT_REACHED")
             reasons.append(
                 f"Retry count {retry_count} has reached limit of {self.automated_retry_limit}"
+            )
+            return PolicyResult(
+                allowed=False,
+                decision=PolicyVerdict.STOP,
+                reason="; ".join(reasons),
+                rules_triggered=rules_triggered,
+                original_action=requested_action,
+                final_action="stop",
+            )
+
+        # ── Rule 5: Low recovery probability → STOP ────────────
+        # If probability is below the minimum viable intervention floor, stop recovery entirely
+        if recovery_probability < self.min_nudge_prob:
+            rules_triggered.append("LOW_RECOVERY_PROBABILITY")
+            reasons.append(
+                f"Recovery probability {recovery_probability:.0%} is below minimum viable threshold {self.min_nudge_prob:.0%}"
             )
             return PolicyResult(
                 allowed=False,
@@ -188,8 +223,8 @@ class PolicyEngine:
             )
             passed = False
 
-        # Check failure type is retryable
-        if failure_code and failure_code not in RETRYABLE and failure_code not in ("insufficient_funds", "authentication_failure", "unknown"):
+        # Check failure type is strictly in retryable transient category
+        if failure_code and failure_code not in RETRYABLE:
             rules_triggered.append("FAILURE_NOT_RETRYABLE")
             reasons.append(f"Failure type '{failure_code}' is not in retryable category")
             passed = False

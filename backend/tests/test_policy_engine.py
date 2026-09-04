@@ -112,3 +112,84 @@ def test_payment_link_allowed_within_probability_band(policy):
     assert result.allowed is True
     assert "NUDGE_PROBABILITY_CHECK_PASSED" in result.rules_triggered
     assert result.final_action == "payment_link"
+
+
+def test_insufficient_funds_never_retried(policy):
+    """insufficient_funds requested with retry MUST be blocked from retry and routed to payment_link."""
+    result = policy.evaluate(
+        requested_action="retry",
+        amount=3500.0,
+        recovery_probability=0.85,
+        confidence=0.90,
+        failure_code="insufficient_funds",
+        retry_count=0,
+    )
+    assert result.decision == PolicyVerdict.BLOCK
+    assert result.allowed is False
+    assert "NON_RETRYABLE_FAILURE" in result.rules_triggered
+    assert result.final_action == "payment_link"
+
+
+def test_authentication_failure_never_retried(policy):
+    """authentication_failure requested with retry MUST be blocked from retry and routed to customer_nudge."""
+    result = policy.evaluate(
+        requested_action="retry",
+        amount=2200.0,
+        recovery_probability=0.82,
+        confidence=0.88,
+        failure_code="authentication_failure",
+        retry_count=0,
+    )
+    assert result.decision == PolicyVerdict.BLOCK
+    assert result.allowed is False
+    assert "NON_RETRYABLE_FAILURE" in result.rules_triggered
+    assert result.final_action == "customer_nudge"
+
+
+def test_risk_decline_routed_to_human_review(policy):
+    """risk_decline requested with retry MUST be blocked from retry and routed to human_review."""
+    result = policy.evaluate(
+        requested_action="retry",
+        amount=4000.0,
+        recovery_probability=0.75,
+        confidence=0.80,
+        failure_code="risk_decline",
+        retry_count=0,
+    )
+    assert result.decision == PolicyVerdict.BLOCK
+    assert result.allowed is False
+    assert "NON_RETRYABLE_FAILURE" in result.rules_triggered
+    assert result.final_action == "human_review"
+
+
+def test_low_recovery_probability_stops(policy):
+    """Recovery probability below min_nudge_prob (<0.55) must trigger STOP."""
+    result = policy.evaluate(
+        requested_action="retry",
+        amount=1500.0,
+        recovery_probability=0.35,
+        confidence=0.80,
+        failure_code="temporary_bank_failure",
+        retry_count=0,
+    )
+    assert result.decision == PolicyVerdict.STOP
+    assert result.allowed is False
+    assert "LOW_RECOVERY_PROBABILITY" in result.rules_triggered
+    assert result.final_action == "stop"
+
+
+def test_retry_amount_exceeding_auto_limit_is_escalated(policy):
+    """Retry for amount above max_automated_amount (₹10,000) but below max_escalation (₹50,000) must ESCALATE."""
+    result = policy.evaluate(
+        requested_action="retry",
+        amount=25000.0,
+        recovery_probability=0.92,
+        confidence=0.90,
+        failure_code="temporary_bank_failure",
+        retry_count=0,
+    )
+    assert result.decision == PolicyVerdict.ESCALATE
+    assert result.allowed is False
+    assert "AMOUNT_EXCEEDS_AUTO_LIMIT" in result.rules_triggered
+    assert result.final_action == "human_review"
+
