@@ -141,6 +141,19 @@ tests/test_webhooks_and_api.py::test_generate_and_list_transactions PASSED
 
 ---
 
+## 🎯 Interactive Demo Scenarios
+
+The seeded dataset includes 4 deterministic showcase transactions designed to validate every core financial guardrail:
+
+| Scenario | Transaction ID | Amount | Failure Reason | Guardrail Verdict | System Action |
+|---|---|---|---|---|---|
+| **1-Click Live Recovery** | `TXN_9281` | ₹4,500 | `temporary_bank_failure` | **ALLOW** | Automated retry succeeds & updates revenue |
+| **High-Value Escalation** | `TXN_9282` | ₹65,000 | Exceeds ₹50k ceiling | **ESCALATE** | Mandatory routing to human merchant review |
+| **Non-Retryable Failure** | `TXN_9283` | ₹3,500 | `expired_card` | **BLOCK** | Retry permanently blocked; routes to customer nudge |
+| **Velocity Exhaustion** | `TXN_9284` | ₹1,800 | Prior retries $\ge 2$ | **STOP** | Halts automated recovery to prevent gateway spam |
+
+---
+
 ## 📂 Project Structure
 
 ```

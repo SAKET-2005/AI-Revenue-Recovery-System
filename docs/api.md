@@ -100,6 +100,30 @@ Runs the complete autonomous recovery pipeline over all failed transactions and 
 }
 ```
 
+**Response `200 OK`**:
+```json
+{
+  "run_id": "RUN_109795E8",
+  "total_transactions": 1204,
+  "failed_transactions": 178,
+  "revenue_at_risk": 827442.06,
+  "eligible_for_recovery": 178,
+  "recovery_attempts": 112,
+  "successful_recoveries": 109,
+  "revenue_recovered": 348200.0,
+  "recovery_rate": 42.08,
+  "avg_recovery_amount": 3194.5,
+  "automated_action_rate": 62.92,
+  "human_escalation_rate": 8.43,
+  "policy_block_rate": 28.65,
+  "escalations": 15,
+  "policy_blocks": 51,
+  "baseline_recovered": 235800.0,
+  "baseline_recovery_rate": 28.5,
+  "improvement_pct": 47.65
+}
+```
+
 ---
 
 ## 5. Webhooks & Payment Links

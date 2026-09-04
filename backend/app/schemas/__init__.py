@@ -199,6 +199,8 @@ class EvaluationResult(BaseModel):
     automated_action_rate: float = 0.0
     human_escalation_rate: float = 0.0
     policy_block_rate: float = 0.0
+    escalations: int = 0
+    policy_blocks: int = 0
     baseline_recovered: float = 0.0
     baseline_recovery_rate: float = 0.0
     improvement_pct: float = 0.0

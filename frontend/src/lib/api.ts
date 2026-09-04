@@ -15,7 +15,7 @@ import type {
 } from "./types";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
-const USE_MOCK_DATA = String(import.meta.env.VITE_USE_MOCK_DATA ?? "true") !== "false";
+const USE_MOCK_DATA = String(import.meta.env.VITE_USE_MOCK_DATA || "false").toLowerCase() === "true";
 
 const pause = (ms = 320) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -59,14 +59,15 @@ function adaptPolicy(policy?: string): PolicyStatus {
   const p = policy.toUpperCase();
   if (p === "ALLOW" || p === "APPROVED") return "approved";
   if (p === "BLOCK" || p === "BLOCKED" || p === "STOP") return "blocked";
+  if (p === "ESCALATE") return "pending";
   return "pending";
 }
 
-function adaptStatus(status?: string, prob = 70): TransactionStatus {
+function adaptStatus(status?: string, prob = 75): TransactionStatus {
   if (!status) return "pending";
   const s = status.toLowerCase();
-  if (s === "recovered" || s === "success") return "recovered";
-  if (s === "blocked" || s === "stop") return "blocked";
+  if (s === "recovered") return "recovered";
+  if (s.includes("block")) return "blocked";
   if (s.includes("human") || s.includes("escalat")) return "human_review";
   if (s === "failed" || s === "at_risk") return prob >= 75 ? "at_risk" : "pending";
   return "pending";
@@ -84,10 +85,13 @@ function adaptTransaction(item: any): Transaction {
     id: item.transaction_id || item.id || `TXN_${Math.floor(1000 + Math.random() * 9000)}`,
     amount: Number(item.amount) || 0,
     customer:
-      item.customer ||
-      (item.customer_id
+      typeof item.customer === "string"
+        ? item.customer
+        : typeof item.customer?.customer_id === "string"
+        ? `Customer ${String(item.customer.customer_id).replace(/\D/g, "").slice(-3) || item.customer.customer_id}`
+        : item.customer_id
         ? `Customer ${String(item.customer_id).replace(/\D/g, "").slice(-3) || item.customer_id}`
-        : "Customer 101"),
+        : "Customer 101",
     paymentMethod: adaptPaymentMethod(item.payment_method || item.paymentMethod),
     failureReason: item.failure_reason || item.failureReason || "Temporary Bank Failure",
     recoveryProbability: prob,
@@ -99,7 +103,12 @@ function adaptTransaction(item: any): Transaction {
       : item.timestamp || "Today, 09:41:00",
     diagnosis: item.diagnosis || "Contextual recovery probability identified from transaction pattern.",
     retryCount: item.retry_count ?? item.retryCount ?? 0,
-    customerHistory: item.customerHistory || "Prior successful transaction history verified",
+    customerHistory:
+      typeof item.customerHistory === "string"
+        ? item.customerHistory
+        : typeof item.customer === "object" && item.customer?.previous_transactions !== undefined
+        ? `${item.customer.previous_transactions} previous transactions (${Math.round((item.customer.success_rate || 0) * 100)}% success rate)`
+        : "Prior successful transaction history verified",
   };
 }
 
@@ -276,35 +285,52 @@ export async function executeRecovery(id: string): Promise<{ status: "recovered"
   if (USE_MOCK_DATA) {
     await pause(1200);
     const item = transactions.find((txn) => txn.id === id);
-    return { status: "recovered", amount: item?.amount ?? 4500 };
+    return { status: "recovered", amount: item?.amount ?? 0 };
   }
   try {
     const res = await request<any>(`/recovery/execute/${id}`, { method: "POST" });
     return {
       status: "recovered",
-      amount: res.amount_recovered || res.amount || 4500,
+      amount: Number(res.amount_recovered ?? res.amount ?? 0),
     };
   } catch (err) {
-    console.warn(`[ReviveAI API] /recovery/execute/${id} failed, returning mock recovery`, err);
-    return { status: "recovered", amount: 4500 };
+    console.error(`[ReviveAI API] /recovery/execute/${id} failed:`, err);
+    throw err;
   }
 }
 
 export async function runBatchRecovery(): Promise<RecoveryRunResult> {
   if (USE_MOCK_DATA) {
     await pause(1800);
-    return { scanned: 1000, riskEvents: 327, approved: 241, escalated: 53, stopped: 33, recovered: 342500, recoveryRate: 67.4 };
+    const risk = transactions.filter((t) => t.status !== "recovered");
+    return {
+      scanned: transactions.length,
+      riskEvents: risk.length,
+      approved: dashboardMetrics.automatedRecoveries || 0,
+      escalated: dashboardMetrics.humanEscalations || 0,
+      stopped: risk.filter((t) => t.policy === "blocked").length,
+      recovered: Math.round(dashboardMetrics.revenueRecovered || 0),
+      recoveryRate: Number((dashboardMetrics.recoveryRate || 0).toFixed(1)),
+    };
   }
   try {
     const res = await request<any>("/recovery/run-batch", { method: "POST" });
-    const scanned = res.total_transactions ?? res.total_processed ?? 1000;
-    const riskEvents = res.failed_transactions ?? res.failed_identified ?? 327;
-    const approved = res.successful_recoveries ?? res.actions_executed ?? res.recovery_attempts ?? 241;
-    const eligible = res.eligible_for_recovery ?? riskEvents;
-    const escalated = res.escalations ?? Math.round(((res.human_escalation_rate || 0) / 100) * eligible) ?? 53;
-    const stopped = res.policy_blocks ?? Math.round(((res.policy_block_rate || 0) / 100) * eligible) ?? 33;
-    const recovered = res.revenue_recovered ?? res.total_recovered ?? 342500;
-    const recoveryRate = res.recovery_rate ?? 67.4;
+    const scanned = Number(res.total_transactions ?? res.failed_transactions ?? 0);
+    const riskEvents = Number(res.failed_transactions ?? 0);
+    const approved = Number(res.recovery_attempts ?? res.successful_recoveries ?? 0);
+    const eligible = Number(res.eligible_for_recovery ?? riskEvents);
+
+    const escalated = typeof res.escalations === "number"
+      ? res.escalations
+      : Math.round(((Number(res.human_escalation_rate) || 0) / 100) * eligible);
+
+    const stopped = typeof res.policy_blocks === "number"
+      ? res.policy_blocks
+      : Math.round(((Number(res.policy_block_rate) || 0) / 100) * eligible);
+
+    const recovered = Math.round(Number(res.revenue_recovered ?? 0));
+    const rawRate = Number(res.recovery_rate ?? 0);
+    const recoveryRate = Number(rawRate.toFixed(1));
 
     return {
       scanned,
@@ -312,12 +338,12 @@ export async function runBatchRecovery(): Promise<RecoveryRunResult> {
       approved,
       escalated,
       stopped,
-      recovered: Math.round(recovered),
-      recoveryRate: Number(recoveryRate.toFixed ? recoveryRate.toFixed(1) : recoveryRate),
+      recovered,
+      recoveryRate,
     };
   } catch (err) {
-    console.warn("[ReviveAI API] /recovery/run-batch failed, returning mock result", err);
-    return { scanned: 1000, riskEvents: 327, approved: 241, escalated: 53, stopped: 33, recovered: 342500, recoveryRate: 67.4 };
+    console.error("[ReviveAI API] /recovery/run-batch failed:", err);
+    throw err;
   }
 }
 

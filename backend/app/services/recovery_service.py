@@ -348,7 +348,10 @@ class RecoveryService:
         db.add(eval_run)
         await db.flush()
 
-        return EvaluationResult.model_validate(eval_run)
+        res = EvaluationResult.model_validate(eval_run)
+        res.escalations = stats["escalations"]
+        res.policy_blocks = stats["blocks"]
+        return res
 
     async def get_dashboard_metrics(self, db: AsyncSession) -> DashboardMetrics:
         """Calculate dashboard metrics from actual data."""
