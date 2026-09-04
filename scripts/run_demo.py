@@ -1,5 +1,5 @@
 """
-Command-line runner for interactive 5-minute hackathon demo walkthrough.
+Command-line runner for end-to-end recovery pipeline verification.
 
 Usage: python scripts/run_demo.py
 """
@@ -19,7 +19,6 @@ from scripts.seed_database import seed
 async def demo():
     print("=" * 70)
     print("  ReviveAI - Autonomous Revenue Recovery Command Center")
-    print("  Razorpay AI Buildathon 2026 - Track 3")
     print("=" * 70)
 
     # 1. Init & ML check

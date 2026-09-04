@@ -126,18 +126,6 @@ tests/test_webhooks_and_api.py::test_webhook_idempotency_and_duplicate_rejection
 
 ---
 
-## ⚡ Demo Walkthrough (5-Minute Hackathon Pitch)
-
-See [`docs/demo.md`](docs/demo.md) for the complete presenter pitch guide.
-
-1. **Dashboard**: Inspect real-time metrics (Revenue at Risk, Recovered, Recovery Funnel).
-2. **Transaction Queue**: Open a failed payment (`TXN_000996`) $\to$ View 91% recovery probability, AI reasoning, and approved policy check.
-3. **Guardrails**: Inspect a high-value payment (>₹50,000) $\to$ Observe deterministic human escalation.
-4. **Batch Evaluation**: Trigger batch recovery in Demo Controls $\to$ Compare ReviveAI vs baseline lift (+30%+ improvement).
-5. **Payment Link**: Generate and complete a recovery payment link in the simulated checkout modal.
-
----
-
 ## 📂 Project Structure
 
 ```
@@ -156,17 +144,16 @@ ReviveAI/
 │   └── ml_artifacts/       # Serialized XGBoost Model & Encoders
 ├── frontend/
 │   ├── src/
-│   │   ├── components/     # Sidebar, MetricCards, Modals
-│   │   ├── pages/          # Dashboard, Transactions, Detail, Audit, Evaluation, Demo
-│   │   └── services/       # API Client
+│   │   ├── components/     # UI Components, AppShell, 3D Canvas
+│   │   ├── pages/          # Dashboard, Transactions, Detail, Audit, Analytics
+│   │   └── lib/            # API Client & Adapters
 ├── docs/
 │   ├── architecture.md     # In-depth architectural design & Mermaid diagrams
-│   ├── api.md              # Complete REST API specifications
-│   └── demo.md             # 5-minute hackathon pitch script
+│   └── api.md              # Complete REST API specifications
 ├── scripts/
 │   ├── train_model.py      # ML Model Training Script
 │   ├── seed_database.py    # Synthetic Data Seeding
-│   └── run_demo.py         # CLI Interactive Demo Runner
+│   └── run_demo.py         # CLI Interactive Pipeline Runner
 ├── .env.example
 ├── docker-compose.yml
 └── README.md
